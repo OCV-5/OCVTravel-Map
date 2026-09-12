@@ -40,7 +40,7 @@ h1,h2,.count,.chip{font-family:Oswald,Inter,system-ui,sans-serif;letter-spacing:
 #brand h1{margin:0;font-size:23px;font-weight:600;text-transform:uppercase}
 #brand h1 span{color:var(--orange)}
 #brand p{margin:5px 0 0;font-size:12.5px;color:rgba(245,241,232,.62);line-height:1.45}
-.count{margin-top:11px;font-size:12px;color:var(--orange);text-transform:uppercase}
+.count{margin-top:11px;font-size:12px;color:var(--orange);text-transform:uppercase;line-height:1.5}
 
 #tools{padding:14px 20px;border-bottom:1px solid var(--line)}
 #q{
@@ -170,7 +170,7 @@ h1,h2,.count,.chip{font-family:Oswald,Inter,system-ui,sans-serif;letter-spacing:
     <div id="brand">
       <h1>OCV <span>Travel</span></h1>
       <p>Every city we've driven, with the video.</p>
-      <div class="count"><span id="shown">0</span> of 371 cities</div>
+      <div class="count" id="count"></div>
     </div>
     <div id="tools">
       <input id="q" type="search" placeholder="Search a city or state…" autocomplete="off">
@@ -342,7 +342,40 @@ states.forEach(function(st){
 });
 
 var q = document.getElementById('q'), list = document.getElementById('list'),
-    shown = document.getElementById('shown');
+    countEl = document.getElementById('count');
+
+/* "2 Countries, 24 States, 371 Cities, & Counting".
+   Counted from what is actually on the map right now rather than baked in at
+   build time, so filtering to Michigan says "1 Country, 1 State, 47 Cities"
+   instead of a headline that disagrees with the pins underneath it.
+
+   The US counts as one country when any US-state pin is showing -- the chips
+   name states, not their country, so nothing else would ever count it.
+   "Other" is a pin we could not place: it is a city, but it is not evidence of
+   a state or a country, so it adds to neither.
+
+   A zero segment is dropped rather than printed: "0 Countries" on a map of one
+   Michigan town reads as a bug. */
+function plural(n, one, many){ return n + ' ' + (n === 1 ? one : many); }
+
+function headline(keep){
+  var st = {}, co = {};
+  keep.forEach(function(m){
+    var a = m.pin.a;
+    if (a === 'Other') return;
+    if (a.length === 2) st[a] = 1; else co[a] = 1;
+  });
+  var nStates = Object.keys(st).length;
+  var nCountries = Object.keys(co).length + (nStates ? 1 : 0);
+  var parts = [];
+  if (nCountries) parts.push(plural(nCountries, 'Country', 'Countries'));
+  if (nStates) parts.push(plural(nStates, 'State', 'States'));
+  parts.push(plural(keep.length, 'City', 'Cities'));
+  // "& Counting" is a claim about the whole map, so it is only made when
+  // nothing has been filtered out of it.
+  if (!selN && !q.value.trim()) parts.push('& Counting');
+  return parts.join(', ');
+}
 
 function clearAll(){
   sel = {}; selN = 0;
@@ -369,7 +402,7 @@ function render(){
   list.innerHTML = '';
   markers.forEach(function(m){ if (matches(m.pin)) keep.push(m); });
   cluster.addLayers(keep);
-  shown.textContent = keep.length;
+  countEl.textContent = headline(keep);
   // Only offer Clear when there is something to clear, so it never reads as a
   // filter of its own.
   clearBtn.hidden = !(selN || q.value.trim());
