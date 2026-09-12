@@ -111,6 +111,22 @@ h1,h2,.count,.chip{font-family:Oswald,Inter,system-ui,sans-serif;letter-spacing:
   font-family:Oswald,sans-serif;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.45);
 }
 
+/* The name tag on a lone pin. markercluster only puts a marker on the map when
+   it ISN'T in a cluster, so a permanent tooltip appears exactly when the dot is
+   a bare dot with no number on it -- no zoom threshold to pick or tune. */
+.pinlabel.leaflet-tooltip{
+  background:rgba(26,32,38,.93);color:var(--offwhite);
+  border:1px solid var(--line);border-radius:6px;
+  padding:3px 8px;margin:0;
+  font:600 12px/1.3 Oswald,Inter,system-ui,sans-serif;letter-spacing:.02em;
+  white-space:nowrap;max-width:190px;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 2px 9px rgba(0,0,0,.5);cursor:pointer;
+  transition:background .12s ease,border-color .12s ease;
+}
+.pinlabel.leaflet-tooltip:before{display:none}
+.pinlabel.leaflet-tooltip:hover{background:var(--orange);color:#1a1207;
+  border-color:var(--offwhite)}
+
 .leaflet-popup-content-wrapper{
   background:var(--charcoal);color:var(--offwhite);border-radius:10px;
   border:1px solid var(--line);box-shadow:0 10px 34px rgba(0,0,0,.5);
@@ -265,6 +281,17 @@ PINS.forEach(function(p){
   var m = L.marker([p.y, p.x], {icon:icon, title:p.n});
   m.bindPopup(function(){ return popupHTML(p, 0); },
               {minWidth:POPW, maxWidth:POPW});
+  m.bindTooltip(p.c || p.n, {permanent:true, direction:'right', offset:[17, 0],
+                             className:'pinlabel', interactive:true, opacity:1});
+  // An interactive tooltip is its own layer -- a click on it does not reach the
+  // marker on its own. Wire it, so the name is a second, much larger target for
+  // the same popup.
+  m.on('tooltipopen', function(e){
+    var el = e.tooltip.getElement();
+    if (!el || el._wired) return;
+    el._wired = 1;
+    L.DomEvent.on(el, 'click', function(ev){ L.DomEvent.stop(ev); m.openPopup(); });
+  });
   m.pin = p;
   markers.push(m);
 });
